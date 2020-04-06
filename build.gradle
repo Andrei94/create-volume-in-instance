@@ -29,6 +29,8 @@ dependencies {
     implementation "io.micronaut:micronaut-function-aws"
     implementation "io.micronaut:micronaut-function-web"
     implementation "io.micronaut:micronaut-http-client"
+    implementation "com.amazonaws:aws-java-sdk-ec2:1.11.759"
+    implementation "com.squareup.okhttp3:okhttp:3.14.7"
     runtimeOnly "com.amazonaws:aws-lambda-java-log4j2:1.0.0"
     runtimeOnly "org.apache.logging.log4j:log4j-slf4j-impl:2.9.1"
     testAnnotationProcessor platform("io.micronaut:micronaut-bom:$micronautVersion")
