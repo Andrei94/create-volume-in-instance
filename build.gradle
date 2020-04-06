@@ -76,6 +76,11 @@ jar {
     }
 }
 
+aws {
+    profileName = 'andreiprecup'
+    region = 'eu-central-1'
+}
+
 if(new File("${System.getProperty("user.home")}/.aws/credentials").exists()) {
     task deploy(type: jp.classmethod.aws.gradle.lambda.AWSLambdaMigrateFunctionTask, dependsOn: shadowJar) {
         functionName = "create-volume-in-instance"
@@ -83,7 +88,7 @@ if(new File("${System.getProperty("user.home")}/.aws/credentials").exists()) {
         role = "arn:aws:iam::${aws.accountId}:role/lambda_basic_execution"
         runtime = com.amazonaws.services.lambda.model.Runtime.Java8
         zipFile = shadowJar.archivePath
-        memorySize = 192
+        memorySize = 256
         timeout = 60
     }
 }
