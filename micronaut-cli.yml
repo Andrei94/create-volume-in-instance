@@ -1,0 +1,5 @@
+profile: function-aws
+defaultPackage: create.volume.in.instance
+---
+testFramework: junit
+sourceLanguage: java
