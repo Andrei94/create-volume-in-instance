@@ -39,7 +39,9 @@ public class CreateVolumeInInstanceFunction extends FunctionInitializer implemen
 
 	private List<String> getIpAddresses() {
 		AmazonEC2 client = AmazonEC2ClientBuilder.defaultClient();
-		DescribeInstancesResult backedupInstances = client.describeInstances(new DescribeInstancesRequest().withFilters(new Filter("tag:project", Collections.singletonList("backedup"))));
+		DescribeInstancesResult backedupInstances = client.describeInstances(new DescribeInstancesRequest().
+				withFilters(new Filter("tag:project", Collections.singletonList("backedup")),
+						new Filter("instance-state-name", Collections.singletonList("running"))));
 		client.shutdown();
 		return backedupInstances.getReservations().stream()
 				.flatMap(reservation -> reservation.getInstances().stream()).collect(Collectors.toList())
@@ -47,7 +49,7 @@ public class CreateVolumeInInstanceFunction extends FunctionInitializer implemen
 	}
 
 	private ConcurrentMap<String, Long> getFreeDevicesCountInEndpoints(List<String> endpoints) {
-		return endpoints.parallelStream().collect(Collectors.toConcurrentMap(endpoint -> endpoint, o -> {
+		return endpoints.stream().collect(Collectors.toConcurrentMap(endpoint -> endpoint, o -> {
 			try {
 				Response execute = new OkHttpClient().newCall(new Request.Builder().url("http://" + o + ":" + port + path).get().build()).execute();
 				return Long.parseUnsignedLong(Objects.requireNonNull(execute.body()).string());
