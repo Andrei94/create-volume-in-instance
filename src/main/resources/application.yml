@@ -1,3 +1,6 @@
 micronaut:
   function:
     name: create-volume-in-instance
+loadBalancing:
+  port: 8080
+  path: /freeDevicesCount

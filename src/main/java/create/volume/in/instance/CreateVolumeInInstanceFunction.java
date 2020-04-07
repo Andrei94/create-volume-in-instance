@@ -6,6 +6,7 @@ import com.amazonaws.services.ec2.model.DescribeInstancesRequest;
 import com.amazonaws.services.ec2.model.DescribeInstancesResult;
 import com.amazonaws.services.ec2.model.Filter;
 import com.amazonaws.services.ec2.model.Instance;
+import io.micronaut.context.annotation.Value;
 import io.micronaut.function.FunctionBean;
 import io.micronaut.function.executor.FunctionInitializer;
 import okhttp3.OkHttpClient;
@@ -23,6 +24,11 @@ import java.util.stream.Collectors;
 @FunctionBean("create-volume-in-instance")
 public class CreateVolumeInInstanceFunction extends FunctionInitializer implements Function<LeastUsedInstance, LeastUsedInstance> {
 	private Logger logger = LoggerFactory.getLogger(LeastUsedInstance.class);
+
+	@Value("${loadBalancing.port}")
+	public String port;
+	@Value("${loadBalancing.path}")
+	public String path;
 
 	@Override
 	public LeastUsedInstance apply(LeastUsedInstance instance) {
@@ -43,7 +49,7 @@ public class CreateVolumeInInstanceFunction extends FunctionInitializer implemen
 	private ConcurrentMap<String, Long> getFreeDevicesCountInEndpoints(List<String> endpoints) {
 		return endpoints.parallelStream().collect(Collectors.toConcurrentMap(endpoint -> endpoint, o -> {
 			try {
-				Response execute = new OkHttpClient().newCall(new Request.Builder().url("http://" + o + ":8080" + "/freeDevicesCount").get().build()).execute();
+				Response execute = new OkHttpClient().newCall(new Request.Builder().url("http://" + o + ":" + port + path).get().build()).execute();
 				return Long.parseUnsignedLong(Objects.requireNonNull(execute.body()).string());
 			} catch(IOException e) {
 				logger.error("An error occurred", e);
