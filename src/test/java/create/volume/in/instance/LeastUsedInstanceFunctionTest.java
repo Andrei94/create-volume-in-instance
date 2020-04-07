@@ -8,14 +8,14 @@ import javax.inject.Inject;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 @MicronautTest
-public class CreateVolumeInInstanceFunctionTest {
+public class LeastUsedInstanceFunctionTest {
 	@Inject
 	CreateVolumeInInstanceClient client;
 
 	@Test
-	public void testFunction() {
-		CreateVolumeInInstance body = new CreateVolumeInInstance();
-		body.setName("create-volume-in-instance");
-		assertEquals("create-volume-in-instance", client.apply(body).blockingGet().getName());
+	void testFunction() {
+		LeastUsedInstance body = new LeastUsedInstance();
+		body.setIp("create-volume-in-instance");
+		assertEquals("create-volume-in-instance", client.apply(body).blockingGet().getIp());
 	}
 }

@@ -11,48 +11,52 @@ import io.micronaut.function.executor.FunctionInitializer;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @FunctionBean("create-volume-in-instance")
-public class CreateVolumeInInstanceFunction extends FunctionInitializer implements Function<CreateVolumeInInstance, CreateVolumeInInstance> {
+public class CreateVolumeInInstanceFunction extends FunctionInitializer implements Function<LeastUsedInstance, LeastUsedInstance> {
+	private Logger logger = LoggerFactory.getLogger(LeastUsedInstance.class);
+
 	@Override
-	public CreateVolumeInInstance apply(CreateVolumeInInstance msg) {
-		List<String> privateIpAddress = getIpAddresses();
-		msg.setName(findLeastUsed(getFreeDevicesCount(privateIpAddress)).toString());
-		return msg;
+	public LeastUsedInstance apply(LeastUsedInstance instance) {
+		List<String> ipAddresses = getIpAddresses();
+		instance.setIp(findLeastUsedInstanceIp(getFreeDevicesCountInEndpoints(ipAddresses)));
+		return instance;
 	}
 
 	private List<String> getIpAddresses() {
 		AmazonEC2 client = AmazonEC2ClientBuilder.defaultClient();
 		DescribeInstancesResult backedupInstances = client.describeInstances(new DescribeInstancesRequest().withFilters(new Filter("tag:project", Collections.singletonList("backedup"))));
 		client.shutdown();
-		return backedupInstances.getReservations().get(0).getInstances().stream().map(Instance::getPublicIpAddress).collect(Collectors.toList());
+		return backedupInstances.getReservations().stream()
+				.flatMap(reservation -> reservation.getInstances().stream()).collect(Collectors.toList())
+				.stream().map(Instance::getPublicIpAddress).collect(Collectors.toList());
 	}
 
-	private ConcurrentMap<String, Long> getFreeDevicesCount(List<String> endpoints) {
-		OkHttpClient httpClient = new OkHttpClient.Builder().connectTimeout(30, TimeUnit.SECONDS).readTimeout(30, TimeUnit.SECONDS).build();
+	private ConcurrentMap<String, Long> getFreeDevicesCountInEndpoints(List<String> endpoints) {
 		return endpoints.parallelStream().collect(Collectors.toConcurrentMap(endpoint -> endpoint, o -> {
 			try {
-				Response execute = httpClient.newCall(new Request.Builder().url("http://" + o + ":8080" + "/freeDevicesCount").get().build()).execute();
+				Response execute = new OkHttpClient().newCall(new Request.Builder().url("http://" + o + ":8080" + "/freeDevicesCount").get().build()).execute();
 				return Long.parseUnsignedLong(Objects.requireNonNull(execute.body()).string());
 			} catch(IOException e) {
-				e.printStackTrace();
+				logger.error("An error occurred", e);
 			}
 			return 0L;
 		}));
 	}
 
-	private Long findLeastUsed(ConcurrentMap<String, Long> freeDevicesCount) {
+	private String findLeastUsedInstanceIp(ConcurrentMap<String, Long> freeDevicesCount) {
 		Optional<Map.Entry<String, Long>> max = freeDevicesCount.entrySet().parallelStream().max(Comparator.comparingLong(Map.Entry::getValue));
 		if(max.isPresent())
-			return max.get().getValue();
-		return 0L;
+			return max.get().getKey();
+		return "";
 	}
 
 	/**
@@ -61,6 +65,6 @@ public class CreateVolumeInInstanceFunction extends FunctionInitializer implemen
 	 */
 	public static void main(String... args) throws IOException {
 		CreateVolumeInInstanceFunction function = new CreateVolumeInInstanceFunction();
-		function.run(args, (context) -> function.apply(context.get(CreateVolumeInInstance.class)));
+		function.run(args, (context) -> function.apply(context.get(LeastUsedInstance.class)));
 	}
 }
