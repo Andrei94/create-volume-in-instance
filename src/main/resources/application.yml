@@ -4,3 +4,5 @@ micronaut:
 loadBalancing:
   port: 8080
   path: /freeDevicesCount
+subscription-plan:
+  createVolumePath: /volume

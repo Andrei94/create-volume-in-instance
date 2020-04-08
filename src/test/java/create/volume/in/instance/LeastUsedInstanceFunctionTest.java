@@ -14,8 +14,8 @@ public class LeastUsedInstanceFunctionTest {
 
 	@Test
 	void testFunction() {
-		LeastUsedInstance body = new LeastUsedInstance();
-		body.setIp("create-volume-in-instance");
-		assertEquals("create-volume-in-instance", client.apply(body).blockingGet().getIp());
+		CreateUserDriveRequest createUserDriveRequest = new CreateUserDriveRequest();
+		createUserDriveRequest.setUsername("username2");
+		assertEquals("create-volume-in-instance", client.apply(createUserDriveRequest).blockingGet().getIp());
 	}
 }
