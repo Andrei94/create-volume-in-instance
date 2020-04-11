@@ -3,9 +3,9 @@ package create.volume.in.instance;
 import io.micronaut.core.annotation.*;
 
 @Introspected
-public class LeastUsedInstance {
+public class CreateUserDriveResponse {
 	private String ip;
-	private String user;
+	private String volumeId;
 	private String token;
 
 	public String getIp() {
@@ -16,12 +16,12 @@ public class LeastUsedInstance {
 		this.ip = ip;
 	}
 
-	public String getUser() {
-		return user;
+	public String getVolumeId() {
+		return volumeId;
 	}
 
-	public void setUser(String user) {
-		this.user = user;
+	public void setVolumeId(String volumeId) {
+		this.volumeId = volumeId;
 	}
 
 	public String getToken() {

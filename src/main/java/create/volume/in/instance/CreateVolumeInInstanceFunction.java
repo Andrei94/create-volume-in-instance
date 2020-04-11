@@ -3,7 +3,6 @@ package create.volume.in.instance;
 import com.amazonaws.services.ec2.AmazonEC2;
 import com.amazonaws.services.ec2.AmazonEC2ClientBuilder;
 import com.amazonaws.services.ec2.model.*;
-import io.micronaut.context.annotation.Value;
 import io.micronaut.function.FunctionBean;
 import io.micronaut.function.executor.FunctionInitializer;
 import okhttp3.*;
@@ -18,38 +17,31 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @FunctionBean("create-volume-in-instance")
-public class CreateVolumeInInstanceFunction extends FunctionInitializer implements Function<CreateUserDriveRequest, LeastUsedInstance> {
-	private Logger logger = LoggerFactory.getLogger(LeastUsedInstance.class);
-	private OkHttpClient httpClient = new OkHttpClient.Builder()
+public class CreateVolumeInInstanceFunction extends FunctionInitializer implements Function<CreateUserDriveRequest, CreateUserDriveResponse> {
+	private final Logger logger = LoggerFactory.getLogger(CreateUserDriveResponse.class);
+	private final OkHttpClient httpClient = new OkHttpClient.Builder()
 			.connectTimeout(20, TimeUnit.SECONDS)
-			.readTimeout(40, TimeUnit.SECONDS)
+			.readTimeout(30, TimeUnit.SECONDS)
 			.build();
 
-	@Value("${loadBalancing.port}")
-	public String port;
-	@Value("${loadBalancing.path}")
-	public String path;
-	@Value("${subscription-plan.createVolumePath}")
-	public String createVolumePath;
-
 	@Override
-	public LeastUsedInstance apply(CreateUserDriveRequest request) {
+	public CreateUserDriveResponse apply(CreateUserDriveRequest request) {
 		List<String> ipAddresses = getIpAddresses();
 		String leastUsedInstanceIp = findLeastUsedInstanceIp(getFreeDevicesCountInEndpoints(ipAddresses));
-		LeastUsedInstance instance = new LeastUsedInstance();
+		CreateUserDriveResponse createUserDriveResponse = new CreateUserDriveResponse();
 		try {
-			String url = "http://" + leastUsedInstanceIp + ":" + port + createVolumePath + "/" + request.getUsername();
+			String url = "http://" + leastUsedInstanceIp + ":8080/volume/createVolume/" + request.getUsername();
 			Response response = httpClient.newCall(new Request.Builder().url(url)
 					.put(RequestBody.create(MediaType.parse("application/json; charset=utf-8"), "")).build())
 					.execute();
 			String createVolumeResponse = Objects.requireNonNull(response.body()).string();
-			instance.setUser(createVolumeResponse.split(" ")[0]);
-			instance.setToken(createVolumeResponse.split(" ")[1]);
-			instance.setIp(leastUsedInstanceIp);
+			createUserDriveResponse.setVolumeId(createVolumeResponse.split(" ")[0]);
+			createUserDriveResponse.setToken(createVolumeResponse.split(" ")[1]);
+			createUserDriveResponse.setIp(leastUsedInstanceIp);
 		} catch(IOException e) {
 			logger.error("An error occurred", e);
 		}
-		return instance;
+		return createUserDriveResponse;
 	}
 
 	private List<String> getIpAddresses() {
@@ -66,7 +58,7 @@ public class CreateVolumeInInstanceFunction extends FunctionInitializer implemen
 	private ConcurrentMap<String, Long> getFreeDevicesCountInEndpoints(List<String> endpoints) {
 		return endpoints.parallelStream().collect(Collectors.toConcurrentMap(endpoint -> endpoint, o -> {
 			try {
-				Response response = httpClient.newCall(new Request.Builder().url("http://" + o + ":" + port + path).get().build()).execute();
+				Response response = httpClient.newCall(new Request.Builder().url("http://" + o + ":8080/freeDevicesCount").get().build()).execute();
 				return Long.parseUnsignedLong(Objects.requireNonNull(response.body()).string());
 			} catch(IOException e) {
 				logger.error("An error occurred", e);

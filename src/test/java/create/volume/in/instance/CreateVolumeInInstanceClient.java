@@ -8,5 +8,5 @@ import javax.inject.Named;
 @FunctionClient
 public interface CreateVolumeInInstanceClient {
     @Named("create-volume-in-instance")
-    Single<LeastUsedInstance> apply(@Body CreateUserDriveRequest body);
+    Single<CreateUserDriveResponse> apply(@Body CreateUserDriveRequest body);
 }
