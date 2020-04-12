@@ -3,8 +3,11 @@ package create.volume.in.instance;
 import com.amazonaws.services.ec2.AmazonEC2;
 import com.amazonaws.services.ec2.AmazonEC2ClientBuilder;
 import com.amazonaws.services.ec2.model.*;
+import com.fasterxml.jackson.core.JsonFactory;
+import com.google.gson.Gson;
 import io.micronaut.function.FunctionBean;
 import io.micronaut.function.executor.FunctionInitializer;
+import io.micronaut.jackson.convert.JsonNodeToObjectConverter;
 import okhttp3.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,11 +33,13 @@ public class CreateVolumeInInstanceFunction extends FunctionInitializer implemen
 		String leastUsedInstanceIp = findLeastUsedInstanceIp(getFreeDevicesCountInEndpoints(ipAddresses));
 		CreateUserDriveResponse createUserDriveResponse = new CreateUserDriveResponse();
 		try {
-			String url = "http://" + leastUsedInstanceIp + ":8080/volume/createVolume/" + request.getUsername();
+			String url = "http://" + leastUsedInstanceIp + ":8080/volume/createVolume/";
 			Response response = httpClient.newCall(new Request.Builder().url(url)
-					.put(RequestBody.create(MediaType.parse("application/json; charset=utf-8"), "")).build())
+					.put(RequestBody.create(MediaType.parse("application/json; charset=utf-8"), new Gson().toJson(request))).build())
 					.execute();
 			String createVolumeResponse = Objects.requireNonNull(response.body()).string();
+			if(createVolumeResponse.equals("invalid token"))
+				return createUserDriveResponse;
 			createUserDriveResponse.setVolumeId(createVolumeResponse.split(" ")[0]);
 			createUserDriveResponse.setToken(createVolumeResponse.split(" ")[1]);
 			createUserDriveResponse.setIp(leastUsedInstanceIp);
