@@ -34,7 +34,7 @@ public class CreateVolumeInInstanceFunction extends FunctionInitializer implemen
 		String leastUsedInstanceIp = findLeastUsedInstanceIp(getFreeDevicesCountInEndpoints(ipAddresses));
 		CreateUserDriveResponse createUserDriveResponse = new CreateUserDriveResponse();
 		try {
-			String url = "http://" + leastUsedInstanceIp + ":8080/volume/createVolume/";
+			String url = "https://" + leastUsedInstanceIp + ":8443/volume/createVolume/";
 			Response response = httpClient.newCall(new Request.Builder().url(url)
 					.put(RequestBody.create(MediaType.parse("application/json; charset=utf-8"), new Gson().toJson(request))).build())
 					.execute();
@@ -64,7 +64,7 @@ public class CreateVolumeInInstanceFunction extends FunctionInitializer implemen
 	private ConcurrentMap<String, Long> getFreeDevicesCountInEndpoints(List<String> endpoints) {
 		return endpoints.parallelStream().collect(Collectors.toConcurrentMap(endpoint -> endpoint, o -> {
 			try {
-				Response response = httpClient.newCall(new Request.Builder().url("http://" + o + ":8080/freeDevicesCount").get().build()).execute();
+				Response response = httpClient.newCall(new Request.Builder().url("https://" + o + ":8443/freeDevicesCount").get().build()).execute();
 				return Long.parseUnsignedLong(Objects.requireNonNull(response.body()).string());
 			} catch(IOException e) {
 				logger.error("An error occurred", e);
