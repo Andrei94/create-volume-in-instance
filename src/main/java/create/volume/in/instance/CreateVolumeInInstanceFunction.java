@@ -10,10 +10,16 @@ import com.google.gson.Gson;
 import io.micronaut.function.FunctionBean;
 import io.micronaut.function.executor.FunctionInitializer;
 import okhttp3.*;
+import okhttp3.tls.Certificates;
+import okhttp3.tls.HandshakeCertificates;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.net.URISyntaxException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.security.cert.X509Certificate;
 import java.util.*;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
@@ -23,20 +29,26 @@ import java.util.stream.Collectors;
 @FunctionBean("create-volume-in-instance")
 public class CreateVolumeInInstanceFunction extends FunctionInitializer implements Function<CreateUserDriveRequest, CreateUserDriveResponse> {
 	private final Logger logger = LoggerFactory.getLogger(CreateUserDriveResponse.class);
-	private final OkHttpClient httpClient = new OkHttpClient.Builder()
-			.connectTimeout(20, TimeUnit.SECONDS)
-			.readTimeout(30, TimeUnit.SECONDS)
-			.build();
+	private OkHttpClient httpClient;
 
 	@Override
 	public CreateUserDriveResponse apply(CreateUserDriveRequest request) {
+		HandshakeCertificates certificates = new HandshakeCertificates.Builder()
+				.addTrustedCertificate(getBackedupCertificateAuthority())
+				.build();
+
+		httpClient = new OkHttpClient.Builder()
+				.connectTimeout(20, TimeUnit.SECONDS)
+				.readTimeout(30, TimeUnit.SECONDS)
+				.sslSocketFactory(certificates.sslSocketFactory(), certificates.trustManager())
+				.build();
 		List<String> ipAddresses = getIpAddresses();
 		String leastUsedInstanceIp = findLeastUsedInstanceIp(getFreeDevicesCountInEndpoints(ipAddresses));
 		CreateUserDriveResponse createUserDriveResponse = new CreateUserDriveResponse();
 		try {
 			String url = "https://" + leastUsedInstanceIp + ":8443/volume/createVolume/";
 			Response response = httpClient.newCall(new Request.Builder().url(url)
-					.put(RequestBody.create(MediaType.parse("application/json; charset=utf-8"), new Gson().toJson(request))).build())
+					.put(RequestBody.create(new Gson().toJson(request), MediaType.parse("application/json; charset=utf-8"))).build())
 					.execute();
 			String createVolumeResponse = Objects.requireNonNull(response.body()).string();
 			if(createVolumeResponse.equals("invalid token"))
@@ -48,6 +60,15 @@ public class CreateVolumeInInstanceFunction extends FunctionInitializer implemen
 			logger.error("An error occurred", e);
 		}
 		return createUserDriveResponse;
+	}
+
+	private X509Certificate getBackedupCertificateAuthority() {
+		try {
+			return Certificates.decodeCertificatePem(new String(Files.readAllBytes(Paths.get(getClass().getClassLoader().getResource("backedup.pem").toURI()))));
+		} catch(IOException | URISyntaxException e) {
+			e.printStackTrace();
+		}
+		throw new RuntimeException("Failed to load certificate");
 	}
 
 	private List<String> getIpAddresses() {
